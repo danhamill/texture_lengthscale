@@ -97,136 +97,88 @@ def plot_agg_table(agg_tbl,oName,meter):
     
 
 if __name__ == '__main__':  
-    win_sizes = [8,12,20,40,80]
-    for win_size in win_sizes:   
-        win = win_size
-        meter = str(win/4)
-        print 'Now working on %s grid resolution...' %(meter,)
-        ss_raster = r"C:\workspace\Merged_SS\window_analysis\10_percent_shift\raster\ss_50_rasterclipped.tif"
-        in_shp = r"C:\workspace\Merged_SS\window_analysis\shapefiles\tex_seg_800_3class.shp"    
-        contFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_contrast.tif"
-        dissFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_diss.tif"
-        homoFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_homo.tif"
-        energyFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_energy.tif"
-        corrFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_corr.tif"
-        ASMFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_asm.tif"    
-        ENTFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_entropy.tif"
-        meanFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_mean.tif"
-        varFile = r"C:\workspace\GLCM\output\glcm_rasters\2014_04" + os.sep + meter +os.sep+"R01346_R01347_" + meter + "_var.tif"
-        
-        ss_stats = zonal_stats(in_shp, ss_raster, stats=['count','mean','std'])
-        ss_df = pd.DataFrame(ss_stats)
-        ss_df.rename(columns={'count':'ss_count','mean':'ss_mean','std':'ss_std'},inplace=True)
+
         
         
-        raster_list = [contFile, dissFile, homoFile, energyFile, corrFile, ASMFile,ENTFile,meanFile,varFile]
+    raster_list = [r"C:\workspace\texture_lengthscale\input\tex_50_rasterclipped.tif", 
+                   r"C:\workspace\texture_lengthscale\input\tex_2014_09_R01765_raster.tif", 
+                   r"C:\workspace\texture_lengthscale\input\tex_2014_09_R01767_raster.tif"]
+    shp_list = [r"C:\workspace\Merged_SS\window_analysis\shapefiles\tex_seg_800_3class.shp",
+                r"C:\workspace\Merged_SS\window_analysis\shapefiles\R01765.shp",
+                r"C:\workspace\Merged_SS\window_analysis\shapefiles\tex_seg_2014_09_67_3class.shp"]
+    survey_list = ['2014_04','2014_09_2','2014_09']
+    for n in xrange(len(raster_list)):
+        raster = raster_list[n]
+        in_shp = shp_list[n]
+        survey = survey_list[n]
+        print 'now working on %s ....' %(raster,)
+        variable = "texture_lengthscale"
         
-        for raster in raster_list:
-            
-            print 'now working on %s ....' %(raster,)
-            variable = raster.split('\\')[-1].split('.')[0].split('_')[-1]
-            
-            z_stats = zonal_stats(in_shp, raster, stats=['count','mean'], raster_out=True)
-            
-            s_df,  g_df, r_df, a = agg_distributions(z_stats, in_shp)
+        z_stats = zonal_stats(in_shp, raster, stats=['count','mean'], raster_out=True)
+        
+        s_df,  g_df, r_df, a = agg_distributions(z_stats, in_shp)
 
-            #Create Summary Table
-            agg_tbl = make_table(s_df, g_df, r_df)
-            
-            
-            oName = r"C:\workspace\GLCM\output\2014_04" + os.sep + variable + "_aggragrated_" + meter +"_distribution.csv"
-            agg_tbl.to_csv(oName,sep=',')
-            oName = r"C:\workspace\GLCM\output\2014_04" + os.sep + variable + "_aggragrated_" + meter +".png"
+        #Create Summary Table
+        agg_tbl = make_table(s_df, g_df, r_df)
+        
+        
+        oName = r"C:\workspace\texture_lengthscale\output" + os.sep + variable + "_"+ survey +"_aggragrated_distribution.csv"
+        agg_tbl.to_csv(oName,sep=',')
+        
+        oName = r"C:\workspace\texture_lengthscale\output" + os.sep + variable + "_zonalstats_" + survey +".csv" 
+        
+        
+        tex_stats = zonal_stats(in_shp, raster, stats=['min','mean','max','median','std','count','percentile_25','percentile_50','percentile_75'])
+        tex_stats = pd.DataFrame(tex_stats)
+        tex_stats['substrate'] = a
+        tex_stats.to_csv(oName,sep=',',index=False)
+        
+        if raster == raster_list[0]:
+            merge_sand = s_df
+            merge_gravel = g_df
+            merge_rock = r_df
+        else:
+            merge_sand = pd.concat([merge_sand,s_df])
+            merge_gravel = pd.concat([merge_gravel,g_df])
+            merge_rock = pd.concat([merge_rock,r_df])
+    total_merge_tbl = make_table(merge_sand,merge_gravel,merge_rock)
 
-            plot_agg_table(agg_tbl,oName, meter)
-            
-           
-            
-            #legend stuff
-            blue = mpatches.Patch(color='blue',label='Sand')
-            green = mpatches.Patch(color='green',label='Gravel')
-            red = mpatches.Patch(color='red',label='Boulders')
-            
-            fig = plt.figure(figsize=(6,2))
-            ax = fig.add_subplot(1,1,1)
-            try:
-                s_df.plot.hist(ax=ax,bins=50,legend=False,rot=45,zorder=1,color='blue')            
-            except:
-                pass
-                    
-            #ax = fig.add_subplot(1,3,2)
-            try:
-               g_df.plot.hist(ax=ax,bins=50,legend=False,rot=45,zorder=1, color='green')
-            except:
-                pass            
-            #ax = fig.add_subplot(1,3,3)
-            try:
-                  r_df.plot.hist(ax=ax,bins=50,legend=False,rot=45,zorder=10, color='red')
-            except: 
-                pass
-            
-            ax.set_xlabel(variable)            
-            ax.legend(loc=9,handles=[blue,green,red],ncol=3,columnspacing=1, fontsize=8)
-            plt.suptitle( meter + ' meter grid')
-            plt.tight_layout(pad=2)            
-            plt.savefig(oName, dpi=600)
-            
-            
-            oName = r"C:\workspace\GLCM\output\2014_04" + os.sep + variable + "_zonalstats_" + meter +"_grid.csv" 
-            glcm_stats = zonal_stats(in_shp, raster, stats=['min','mean','max','median','std','count','percentile_25','percentile_50','percentile_75'])
-            glcm_df = pd.DataFrame(glcm_stats)
-            glcm_df['substrate'] = a
-            glcm_df.to_csv(oName,sep=',',index=False)
-            
-            
-            glcm_stats = zonal_stats(in_shp, raster, stats=['count','mean'])   
-
-            glcm_df = pd.DataFrame(glcm_stats)
-            glcm_df.rename(columns={'count':'glcm_count','mean':'glcm_mean'},inplace = True)
-            merge = glcm_df.merge(ss_df, left_index=True, right_index=True, how='left')
-            
-            merge['substrate'] = a
-
-            oName = r"C:\workspace\GLCM\output\2014_04" + os.sep + variable + "_ss_comparison_" + meter +".csv"   
-            merge.to_csv(oName, sep=',', index=False)
-            
-            
-            oName = r"C:\workspace\GLCM\output\2014_04" + os.sep + variable + "_ss_comparison_" + meter +".png"
-            fig, (ax1,ax2) = plt.subplots(nrows=2)
-
-            
-            try:
-                merge.query('substrate == ["sand"]').plot.scatter(ax = ax1, x='ss_mean', y='glcm_mean', color='blue',label='sand')
-            except:                
-                pass
-            try:
-                merge.query('substrate == ["gravel"]').plot.scatter(ax = ax1, x='ss_mean', y='glcm_mean', color='red',label = 'gravel')
-            except:
-                pass
-            try:
-                merge.query('substrate == ["boulders"]').plot.scatter(ax = ax1, x='ss_mean', y='glcm_mean', color='green', label='boulders')
-            except:
-                pass
-            ax1.set_ylabel(variable)
-            ax1.legend(loc='9', ncol=3, columnspacing=1, fontsize=8)
-           
-            try:
-                merge.query('substrate == ["sand"]').plot.scatter(ax = ax2, x='ss_std', y='glcm_mean', color='blue',label='sand')
-            except:
-                pass
-            try:
-                merge.query('substrate == ["gravel"]').plot.scatter(ax = ax2, x='ss_std', y='glcm_mean', color='red',label = 'gravel')
-            except:
-                pass
-            try:
-                merge.query('substrate == ["boulders"]').plot.scatter(ax = ax2, x='ss_std', y='glcm_mean', color='green', label='boulders')
-            except:
-                pass
-            ax2.set_ylabel(variable)
-            ax2.legend(loc='9', ncol=3, columnspacing=1, fontsize=8)
-            plt.tight_layout()
-            plt.suptitle(meter +' meter grid')
-            plt.savefig(oName,dpi=600)
+#        oName = r"C:\workspace\GLCM\output\2014_04" + os.sep + variable + "_ss_comparison_" + meter +".png"
+#        fig, (ax1,ax2) = plt.subplots(nrows=2)
+#
+#        
+#        try:
+#            merge.query('substrate == ["sand"]').plot.scatter(ax = ax1, x='ss_mean', y='glcm_mean', color='blue',label='sand')
+#        except:                
+#            pass
+#        try:
+#            merge.query('substrate == ["gravel"]').plot.scatter(ax = ax1, x='ss_mean', y='glcm_mean', color='red',label = 'gravel')
+#        except:
+#            pass
+#        try:
+#            merge.query('substrate == ["boulders"]').plot.scatter(ax = ax1, x='ss_mean', y='glcm_mean', color='green', label='boulders')
+#        except:
+#            pass
+#        ax1.set_ylabel(variable)
+#        ax1.legend(loc='9', ncol=3, columnspacing=1, fontsize=8)
+#       
+#        try:
+#            merge.query('substrate == ["sand"]').plot.scatter(ax = ax2, x='ss_std', y='glcm_mean', color='blue',label='sand')
+#        except:
+#            pass
+#        try:
+#            merge.query('substrate == ["gravel"]').plot.scatter(ax = ax2, x='ss_std', y='glcm_mean', color='red',label = 'gravel')
+#        except:
+#            pass
+#        try:
+#            merge.query('substrate == ["boulders"]').plot.scatter(ax = ax2, x='ss_std', y='glcm_mean', color='green', label='boulders')
+#        except:
+#            pass
+#        ax2.set_ylabel(variable)
+#        ax2.legend(loc='9', ncol=3, columnspacing=1, fontsize=8)
+#        plt.tight_layout()
+#        plt.suptitle(meter +' meter grid')
+#        plt.savefig(oName,dpi=600)
 
 
 
